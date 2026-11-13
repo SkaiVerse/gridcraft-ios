@@ -1,0 +1,74 @@
+name: Build iPad IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get GridCraft source
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/gridcraft
+          path: upstream
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Make sure the web target is installed
+        run: rustup target add wasm32-unknown-unknown
+        working-directory: upstream
+
+      - name: Install Trunk
+        run: cargo install trunk --locked
+
+      - name: Build web version
+        run: trunk build --release --public-url ./ --dist "$GITHUB_WORKSPACE/web-dist"
+        working-directory: upstream/apps/gridcraft-web
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web-dist
+
+  ios:
+    needs: web
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: Resources/web
+
+      - name: Check web files arrived
+        run: ls -la Resources/web
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build app (unsigned)
+        run: |
+          xcodebuild -project GridCraft.xcodeproj -scheme GridCraft \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/GridCraft.app Payload/
+          zip -qr GridCraft.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GridCraft-ipa
+          path: GridCraft.ipa
