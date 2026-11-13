@@ -13,7 +13,7 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.yourname.gridcraft
+        PRODUCT_BUNDLE_IDENTIFIER: com.justinfor.gridcraft
         TARGETED_DEVICE_FAMILY: "2"
         SWIFT_VERSION: "5.0"
         MARKETING_VERSION: "0.1"
